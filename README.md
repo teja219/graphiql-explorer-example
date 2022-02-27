@@ -28,4 +28,6 @@ Your browser will automatically open to http://localhost:3000 with the explorer 
 
 The example app is deployed to GitHub pages at [https://onegraph.github.io/graphiql-explorer-example/](https://onegraph.github.io/graphiql-explorer-example/) and is in use in production at [https://www.onegraph.com/graphiql](https://www.onegraph.com/graphiql).
 
-![Preview](https://user-images.githubusercontent.com/476818/51567716-c00dfa00-1e4c-11e9-88f7-6d78b244d534.gif)
+
+
+![Preview](https://user-images.githubusercontent.com/96786916/155893494-27a4541d-a85d-48e6-944d-73615ec770b0.gif)
