@@ -1,4 +1,12 @@
 .graphiql-container {
-  height: 100vh;
+  height: 70vh;
+  width: 100vw;
+}
+.grid {
+  height: 25vh;
+  width: 100vw;
+}
+.utility-bar {
+  height: 5vh;
   width: 100vw;
 }

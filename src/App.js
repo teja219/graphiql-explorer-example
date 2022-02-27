@@ -1,94 +1,181 @@
-// @flow
-
 import React, { Component } from "react";
+import { render } from 'react-dom';
+import { AgGridReact } from 'ag-grid-react';
 import GraphiQL from "graphiql";
 import GraphiQLExplorer from "graphiql-explorer";
 import { buildClientSchema, getIntrospectionQuery, parse } from "graphql";
 
 import { makeDefaultArg, getDefaultScalarArgValue } from "./CustomArgs";
-
+import 'ag-grid-community/dist/styles/ag-grid.css';
+import 'ag-grid-community/dist/styles/ag-theme-alpine.css';
 import "graphiql/graphiql.css";
 import "./App.css";
 
 import type { GraphQLSchema } from "graphql";
 
-function fetcher(params: Object): Object {
-  return fetch(
-    "https://serve.onegraph.com/dynamic?app_id=c333eb5b-04b2-4709-9246-31e18db397e1",
-    {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(params)
-    }
-  )
-    .then(function(response) {
-      return response.text();
-    })
-    .then(function(responseBody) {
-      try {
-        return JSON.parse(responseBody);
-      } catch (e) {
-        return responseBody;
-      }
-    });
-}
 
+function isPrimitive(val){
+    if(val === null){
+        return true;
+    }
+
+    if(typeof val == "object" || typeof val == "function"){
+        return false;
+    }else{
+        return true;
+    }
+}
+function constructTableWrapper(data,path){
+    var result = constructTable(data,path);
+    result.rows = result.rows.map(row => {
+        var rowNew = {};
+        for(var k1 in row){
+            rowNew[k1] = row[k1];
+        }
+        for(var k2 in result.referenceData){
+            rowNew[k2] = result.referenceData[k2];
+        }
+        return rowNew;
+    })
+    result.columns = result.columns.concat(Object.keys(result.referenceData).map(k=>({field: k,cellStyle: {fontSize: '11px'} })))
+    return result;
+}
+function constructTable(data,path) {
+    var columns = [];
+    var rows = [];
+    var referenceData = {};
+
+    if(Array.isArray(data)){
+        rows = data;
+        columns = Object.keys(rows[0]).map(item => ({field: item,cellStyle: {fontSize: '11px'} }));
+        return {
+            isTable: 1,
+            rows : rows,
+            columns : columns,
+            countTables: 1,
+            referenceData: {}
+        }
+    }
+    if(isPrimitive(data)){
+        return {
+            isTable: 0,
+            rows : [],
+            columns : [],
+            countTables: 0,
+            referenceData: { [path]: data }
+        }
+    }
+    var countTables = 0;
+    for(var k in data){
+        if(path === ""){
+            path = k;
+        }
+        else{
+            path = k + "_" + path;
+        }
+        var result = constructTable(data[k],path);
+        if(result.isTable === 1){
+            countTables = countTables + 1;
+            rows = result.rows;
+            columns = result.columns;
+        }
+        if(countTables >= 2 || result.countTables>1){
+            return {
+                isTable: 0,
+                rows : [],
+                columns : [],
+                countTables: 2,
+                referenceData: {}
+            }
+        }
+        for(var kr in result.referenceData){
+            referenceData[kr] = result.referenceData[kr];
+        }
+    }
+    var isTable = 0;
+    if(countTables === 1){
+        isTable= 1;
+    }
+    return {
+        isTable: isTable,
+        rows : rows,
+        columns : columns,
+        countTables: 1,
+        referenceData: referenceData
+    }
+}
 const DEFAULT_QUERY = `# shift-option/alt-click on a query below to jump to it in the explorer
 # option/alt-click on a field in the explorer to select all subfields
 query npmPackage {
   npm {
     package(name: "onegraph-apollo-client") {
-      name
-      homepage
       downloads {
         lastMonth {
-          count
+          perDay {
+            count
+            day
+          }
         }
       }
     }
   }
 }
-
-query graphQLPackage {
-  npm {
-    package(name: "graphql") {
-      name
-      homepage
-      downloads {
-        lastMonth {
-          count
-        }
-      }
-    }
-  }
-}
-
-fragment bundlephobiaInfo on BundlephobiaDependencyInfo {
-  name
-  size
-  version
-  history {
-    dependencyCount
-    size
-    gzip
-  }
-}`;
+`;
 
 type State = {
-  schema: ?GraphQLSchema,
-  query: string,
-  explorerIsOpen: boolean
+      schema: ?GraphQLSchema,
+      query: string,
+      explorerIsOpen: boolean,
+      rowData: [],
+      columnData: []
 };
 
 class App extends Component<{}, State> {
   _graphiql: GraphiQL;
-  state = { schema: null, query: DEFAULT_QUERY, explorerIsOpen: true };
+  constructor(props) {
+      super(props);
+      this.state = {
+          schema: null,
+          query: DEFAULT_QUERY,
+          explorerIsOpen: true,
+          defaultColDef: {
+              resizable: true
+          }
+      };
+      this._fetcher = this._fetcher.bind(this);
+  }
 
+  _fetcher = params => {
+
+      return fetch(
+          "https://serve.onegraph.com/dynamic?app_id=c333eb5b-04b2-4709-9246-31e18db397e1",
+          {
+              method: "POST",
+              headers: {
+                  Accept: "application/json",
+                  "Content-Type": "application/json"
+              },
+              body: JSON.stringify(params)
+          }
+      ).then(function(response) {
+              return response.text();
+      }.bind(this)).then(function(responseBody) {
+          try {
+              var responseBodyData = JSON.parse(responseBody);
+              var data = responseBodyData.data;
+              var result = constructTableWrapper(data,"");
+
+              if(result.rows.length > 0){
+                  this.setState({ rowData: result.rows, columnData: result.columns });
+              }
+              return responseBodyData;
+          } catch (e) {
+              return responseBody;
+          }
+      }.bind(this));
+    }
   componentDidMount() {
-    fetcher({
+    this._fetcher({
       query: getIntrospectionQuery()
     }).then(result => {
       const editor = this._graphiql.getQueryEditor();
@@ -167,46 +254,62 @@ class App extends Component<{}, State> {
 
   render() {
     const { query, schema } = this.state;
+
     return (
-      <div className="graphiql-container">
-        <GraphiQLExplorer
-          schema={schema}
-          query={query}
-          onEdit={this._handleEditQuery}
-          onRunOperation={operationName =>
-            this._graphiql.handleRunQuery(operationName)
-          }
-          explorerIsOpen={this.state.explorerIsOpen}
-          onToggleExplorer={this._handleToggleExplorer}
-          getDefaultScalarArgValue={getDefaultScalarArgValue}
-          makeDefaultArg={makeDefaultArg}
-        />
-        <GraphiQL
-          ref={ref => (this._graphiql = ref)}
-          fetcher={fetcher}
-          schema={schema}
-          query={query}
-          onEditQuery={this._handleEditQuery}
-        >
-          <GraphiQL.Toolbar>
-            <GraphiQL.Button
-              onClick={() => this._graphiql.handlePrettifyQuery()}
-              label="Prettify"
-              title="Prettify Query (Shift-Ctrl-P)"
-            />
-            <GraphiQL.Button
-              onClick={() => this._graphiql.handleToggleHistory()}
-              label="History"
-              title="Show History"
-            />
-            <GraphiQL.Button
-              onClick={this._handleToggleExplorer}
-              label="Explorer"
-              title="Toggle Explorer"
-            />
-          </GraphiQL.Toolbar>
-        </GraphiQL>
-      </div>
+        <div>
+            <div className="graphiql-container">
+                <GraphiQLExplorer
+                    schema={schema}
+                    query={query}
+                    onEdit={this._handleEditQuery}
+                    onRunOperation={operationName =>
+                        this._graphiql.handleRunQuery(operationName)
+                    }
+                    explorerIsOpen={this.state.explorerIsOpen}
+                    onToggleExplorer={this._handleToggleExplorer}
+                    getDefaultScalarArgValue={getDefaultScalarArgValue}
+                    makeDefaultArg={makeDefaultArg}
+                />
+                <GraphiQL
+                    ref={ref => (this._graphiql = ref)}
+                    fetcher={this._fetcher}
+                    schema={schema}
+                    query={query}
+                    onEditQuery={this._handleEditQuery}
+                >
+                    <GraphiQL.Toolbar>
+                        <GraphiQL.Button
+                            onClick={() => this._graphiql.handlePrettifyQuery()}
+                            label="Prettify"
+                            title="Prettify Query (Shift-Ctrl-P)"
+                        />
+                        <GraphiQL.Button
+                            onClick={() => this._graphiql.handleToggleHistory()}
+                            label="History"
+                            title="Show History"
+                        />
+                        <GraphiQL.Button
+                            onClick={this._handleToggleExplorer}
+                            label="Explorer"
+                            title="Toggle Explorer"
+                        />
+                    </GraphiQL.Toolbar>
+                </GraphiQL>
+        </div>
+        <div className="utility-bar">
+            Results:
+        </div>
+        <div className="grid">
+            <AgGridReact
+                rowData={this.state.rowData} columnDefs={this.state.columnData}
+                defaultColDef={this.state.defaultColDef}  enableColResize={true}
+            >
+
+            </AgGridReact>
+        </div>
+        </div>
+
+
     );
   }
 }
