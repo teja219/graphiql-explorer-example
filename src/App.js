@@ -7,12 +7,13 @@ import { buildClientSchema, getIntrospectionQuery, parse } from "graphql";
 
 import { makeDefaultArg, getDefaultScalarArgValue } from "./CustomArgs";
 import 'ag-grid-community/dist/styles/ag-grid.css';
-import 'ag-grid-community/dist/styles/ag-theme-alpine.css';
+import 'ag-grid-community/dist/styles/ag-theme-balham.css';
 import "graphiql/graphiql.css";
 import "./App.css";
 
 import type { GraphQLSchema } from "graphql";
 
+var cellStyle = {fontSize: '11px', fontFamily: 'Consolas, Inconsolata, "Droid Sans Mono", Monaco, monospace'};
 
 function isPrimitive(val){
     if(val === null){
@@ -37,7 +38,7 @@ function constructTableWrapper(data,path){
         }
         return rowNew;
     })
-    result.columns = result.columns.concat(Object.keys(result.referenceData).map(k=>({field: k,cellStyle: {fontSize: '11px'} })))
+    result.columns = result.columns.concat(Object.keys(result.referenceData).map(k=>({field: k,cellStyle: cellStyle })))
     return result;
 }
 function constructTable(data,path) {
@@ -47,7 +48,7 @@ function constructTable(data,path) {
 
     if(Array.isArray(data)){
         rows = data;
-        columns = Object.keys(rows[0]).map(item => ({field: item,cellStyle: {fontSize: '11px'} }));
+        columns = Object.keys(rows[0]).map(item => ({field: item,cellStyle: cellStyle }));
         return {
             isTable: 1,
             rows : rows,
@@ -139,7 +140,8 @@ class App extends Component<{}, State> {
           query: DEFAULT_QUERY,
           explorerIsOpen: true,
           defaultColDef: {
-              resizable: true
+              resizable: true,
+              sortable: true
           }
       };
       this._fetcher = this._fetcher.bind(this);
@@ -296,10 +298,7 @@ class App extends Component<{}, State> {
                     </GraphiQL.Toolbar>
                 </GraphiQL>
         </div>
-        <div className="utility-bar">
-            Results:
-        </div>
-        <div className="grid">
+        <div className="grid ag-theme-balham">
             <AgGridReact
                 rowData={this.state.rowData} columnDefs={this.state.columnData}
                 defaultColDef={this.state.defaultColDef}  enableColResize={true}

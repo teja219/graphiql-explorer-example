@@ -3,10 +3,13 @@
   width: 100vw;
 }
 .grid {
-  height: 25vh;
+  height: 30vh;
   width: 100vw;
 }
 .utility-bar {
   height: 5vh;
   width: 100vw;
+}
+.ag-header-cell-text{
+  font-family: Consolas, Inconsolata, "Droid Sans Mono", Monaco, monospace;
 }
