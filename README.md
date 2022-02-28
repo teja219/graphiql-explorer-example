@@ -30,4 +30,5 @@ The example app is deployed to GitHub pages at [https://onegraph.github.io/graph
 
 
 
-![Preview](https://user-images.githubusercontent.com/96786916/155893494-27a4541d-a85d-48e6-944d-73615ec770b0.gif)
+![Preview](https://user-images.githubusercontent.com/96786916/155929369-4a4cbca5-fda1-4cc5-9a56-cd0e9b400297.gif)
+
